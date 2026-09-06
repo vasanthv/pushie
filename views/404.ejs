@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="en">
+	<%- include('partials/html-head'); -%>
+
+	<body>
+		<div id="app" class="wrap" v-cloak>
+			<%- include('partials/header', { heading: 'Page not found' }); -%>
+			<p class="empty">There is nothing at this address. <a href="/">Go home</a>.</p>
+		</div>
+		<%- include('partials/footer'); -%>
+	</body>
+</html>

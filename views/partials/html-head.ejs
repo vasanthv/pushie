@@ -1,0 +1,44 @@
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, viewport-fit=cover" />
+	<meta name="description" content="Get notified the moment something happens." />
+	<meta name="keywords" content="web-push, push notifications, alerts, webhooks, monitoring" />
+	<meta name="mobile-web-app-capable" content="yes" />
+	<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+
+	<% if(typeof csrfToken !== "undefined") { %>
+	<meta name="csrf-token" content="<%= csrfToken %>" />
+	<% } %> <% if(typeof user !== "undefined" && user !== null) { %>
+	<meta name="pushie-username" content="<%= user.username %>" />
+	<% } %> <% if(typeof profile !== "undefined") { %>
+	<meta name="pushie-profile" content="<%= profile %>" />
+	<% } %>
+	<meta name="pushie-page" content="<%= page %>" />
+	<meta name="pushie-version" content="<%= version %>" />
+
+	<!-- Icons & Theme-->
+	<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+	<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0b0b0c" />
+
+	<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+	<link rel="icon" href="/favicon.png" type="image/png" />
+	<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+	<link rel="manifest" href="/manifest.json" />
+
+	<!-- Meta data for link fetching -->
+	<meta property="og:url" content="https://pushie.net" />
+	<meta property="og:image" content="https://pushie.net/banner.png" />
+	<meta property="og:title" content="Pushie" />
+	<meta property="og:description" content="Get notified the moment something happens." />
+
+	<title><%= title %></title>
+
+	<link href="/styles.css" rel="stylesheet" />
+
+	<script defer src="/vue.global.prod.js"></script>
+	<script defer src="/axios.min.js"></script>
+	<script defer src="/linkify.min.js"></script>
+	<script defer src="/linkify-html.min.js"></script>
+	<script defer src="/script.js"></script>
+</head>

@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+	<%- include('partials/html-head'); -%>
+
+	<body>
+		<div id="app" class="wrap" v-cloak>
+			<%- include('partials/header', { heading: 'Log in' }); -%>
+
+			<form class="form" v-on:submit.prevent="logIn">
+				<div class="field">
+					<label for="username">Username</label>
+					<input type="text" id="username" autocomplete="username" v-model="authCreds.username" />
+				</div>
+				<div class="field">
+					<label for="password">Password</label>
+					<input type="password" id="password" autocomplete="current-password" v-model="authCreds.password" />
+				</div>
+				<button type="submit" class="button block" v-bind:disabled="isSaving">Log in</button>
+				<button type="button" class="button secondary block" v-on:click="forgotPassword">Forgot password</button>
+			</form>
+
+			<p class="alt">No account yet? <a href="/signup">Sign up</a></p>
+		</div>
+		<%- include('partials/footer'); -%>
+	</body>
+</html>
