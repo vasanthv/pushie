@@ -1,0 +1,101 @@
+.api-intro {
+	max-width: 34rem;
+	margin: 0 0 3rem;
+}
+
+.api-intro p {
+	margin: 0 0 1rem;
+}
+
+.api-intro p:last-child {
+	margin-bottom: 0;
+}
+
+.endpoint {
+	max-width: 34rem;
+	margin: 0 0 3rem;
+}
+
+.endpoint > h2 {
+	display: flex;
+	align-items: baseline;
+	flex-wrap: wrap;
+	gap: 0.6rem;
+	margin: 0 0 0.75rem;
+	font-size: 1.05rem;
+	padding-top: 1.5rem;
+	border-top: 1px solid var(--line);
+}
+
+.endpoint > h2 code {
+	font-size: 0.95rem;
+	font-weight: 400;
+}
+
+.method {
+	flex: none;
+	padding: 0.15rem 0.4rem;
+	border-radius: 4px;
+	background: var(--fg);
+	color: var(--bg);
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	font-size: 0.7rem;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+}
+
+.endpoint h3 {
+	margin: 1.75rem 0 0.6rem;
+	font-size: 0.75rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--muted);
+}
+
+.params {
+	margin: 0;
+}
+
+.params dt {
+	margin-top: 1rem;
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	font-size: 0.85rem;
+	font-weight: 700;
+}
+
+.params dt:first-child {
+	margin-top: 0;
+}
+
+.params dd {
+	margin: 0.3rem 0 0;
+	font-size: 0.95rem;
+}
+
+.tag {
+	margin-left: 0.4rem;
+	font-family: inherit;
+	font-size: 0.75rem;
+	font-weight: 400;
+	color: var(--muted);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.code-block {
+	margin: 0;
+	padding: 1rem 1.25rem;
+	background: var(--panel);
+	border-left: 3px solid var(--accent);
+	border-radius: var(--radius-sm);
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	font-size: 0.85rem;
+	line-height: 1.7;
+	white-space: pre;
+	overflow-x: auto;
+}
+
+.code-block.response {
+	border-left-color: var(--line);
+}

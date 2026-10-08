@@ -2,18 +2,8 @@
 
 let swReg = null;
 
-/**
- * Reads a `<meta name="...">` value rendered by the server.
- * @param  {string} name - Name of the meta tag.
- * @return {string|null} Its content, or null when the tag is absent.
- */
 const getMeta = (name) => document.querySelector(`meta[name="${name}"]`)?.getAttribute("content") ?? null;
 
-/**
- * Converts a base64url VAPID key into the Uint8Array PushManager expects.
- * @param  {string} base64String - URL-safe base64 key.
- * @return {Uint8Array}
- */
 const urlB64ToUint8Array = (base64String) => {
 	const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
 	const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
@@ -21,19 +11,14 @@ const urlB64ToUint8Array = (base64String) => {
 	return Uint8Array.from(rawData, (char) => char.charCodeAt(0));
 };
 
-/**
- * Registers the service worker, versioned by the running build. The query
- * string is what makes the browser re-fetch it after a deploy, and it is also
- * how sw.js names its cache.
- */
 const initServiceWorker = async () => {
 	if (!("serviceWorker" in navigator)) return;
 	try {
 		swReg = await navigator.serviceWorker.register(`/sw.js?v=${getMeta("pushie-version") ?? "dev"}`);
-		// A push that lands while the page is open should show up in the feed too.
 		navigator.serviceWorker.addEventListener("message", (event) => {
 			if (event.data?.type === "push-received") App.pullNew();
 		});
+		App.pushPermission = window.Notification ? Notification.permission : "denied";
 		App.refreshPushSubscription();
 	} catch (err) {
 		console.error(err);
@@ -42,8 +27,7 @@ const initServiceWorker = async () => {
 
 const defaultState = () => ({
 	page: getMeta("pushie-page"),
-	username: getMeta("pushie-username"), // logged in user, null when logged out
-	profile: getMeta("pushie-profile"), // only set on /@username
+	username: getMeta("pushie-username"),
 	maxPushLength: 160,
 
 	toast: { type: "", message: "", time: 0 },
@@ -56,15 +40,18 @@ const defaultState = () => ({
 	pushes: [],
 	showLoadMore: false,
 	pushText: "",
+	composerFocused: false,
+	mentionToken: null,
+	mentionIndex: 0,
 
-	tab: "account",
+	panel: null,
 	myAccount: {},
 	allowedUsers: [],
 	allowedAnyone: false,
 	newAllowedUser: "",
 	apiKeys: [],
 
-	pushPermission: window.Notification ? Notification.permission : "denied",
+	pushPermission: null,
 });
 
 const App = Vue.createApp({
@@ -72,8 +59,18 @@ const App = Vue.createApp({
 		return defaultState();
 	},
 	computed: {
-		charsLeft() {
-			return this.maxPushLength - this.pushText.length;
+		composerOpen() {
+			return this.composerFocused || this.pushText.length > 0;
+		},
+		mentionSuggestions() {
+			if (!this.mentionToken) return [];
+			const query = this.mentionToken.query.toLowerCase();
+			return ["all", ...this.otherAllowedUsers]
+				.filter((name) => name.toLowerCase().startsWith(query) && name.toLowerCase() !== query)
+				.slice(0, 6);
+		},
+		otherAllowedUsers() {
+			return this.allowedUsers.filter((username) => username !== this.username);
 		},
 	},
 	methods: {
@@ -84,8 +81,6 @@ const App = Vue.createApp({
 				if (this.toast.time === time) this.toast.message = "";
 			}, 4000);
 		},
-
-		/* ---------- auth ---------- */
 
 		signUp() {
 			const { username, email, password } = this.newAccount;
@@ -116,7 +111,6 @@ const App = Vue.createApp({
 		},
 		onAuthenticated(response) {
 			this.username = response.data.username;
-			// `state` carries the page the user was sent to /login from.
 			const state = new URLSearchParams(window.location.search).get("state");
 			window.location.replace(state && state.startsWith("/") ? state : "/");
 		},
@@ -125,13 +119,10 @@ const App = Vue.createApp({
 			axios.post("/api/logout").finally(() => window.location.replace("/"));
 		},
 
-		/* ---------- account ---------- */
-
 		getMe() {
 			axios.get("/api/me").then((response) => {
 				this.username = response.data.username;
 				this.allowedAnyone = Boolean(response.data.allowedAnyone);
-				// The password field is always blank: it is only ever a new value.
 				this.myAccount = { ...response.data, password: "" };
 			});
 		},
@@ -140,21 +131,29 @@ const App = Vue.createApp({
 
 			this.isSaving = true;
 			axios
-				.put("/api/account", { username, email, password, bio })
+				.put("/api/account", { username, email, password, bio, allowedAnyone: this.allowedAnyone })
 				.then((response) => {
 					this.setToast(response.data.message, "success");
 					this.myAccount.password = "";
-					// A rename changes every @handle on the page, so start clean.
 					if (response.data.username !== this.username) return window.location.reload();
 					this.getMe();
 				})
 				.finally(() => (this.isSaving = false));
 		},
+		deleteAccount() {
+			const warning =
+				"Delete your Pushie account?\n\nIt will be deleted in 7 days. Log in again before then and it is kept.";
+			if (!confirm(warning)) return;
+
+			this.isSaving = true;
+			axios
+				.delete("/api/account")
+				.then(() => window.location.replace("/login"))
+				.finally(() => (this.isSaving = false));
+		},
 		resendVerification() {
 			axios.post("/api/resend").then((response) => this.setToast(response.data.message, "success"));
 		},
-
-		/* ---------- allowed users ---------- */
 
 		getAllowedUsers() {
 			axios.get("/api/users").then((response) => {
@@ -184,15 +183,6 @@ const App = Vue.createApp({
 				this.getAllowedUsers();
 			});
 		},
-		updateAllowedAnyone() {
-			axios
-				.put("/api/account", { allowedAnyone: this.allowedAnyone })
-				.then((response) => this.setToast(response.data.message, "success"))
-				// The checkbox already moved, so put it back if the server disagreed.
-				.catch(() => (this.allowedAnyone = !this.allowedAnyone));
-		},
-
-		/* ---------- api keys ---------- */
 
 		getApiKeys() {
 			axios.get("/api/keys").then((response) => (this.apiKeys = response.data.apiKeys ?? []));
@@ -216,58 +206,122 @@ const App = Vue.createApp({
 			});
 		},
 
-		/* ---------- pushes ---------- */
-
-		/**
-		 * Appends the next page of received pushes. The API pages by count, so the
-		 * page number is derived from what is already on screen.
-		 */
 		pull() {
-			const page = Math.floor(this.pushes.length / 50) + 1;
-
 			this.isLoading = true;
 			axios
-				.get("/api/pull", { params: { page } })
+				.get("/api/pull", { params: { skip: this.pushes.length } })
 				.then((response) => {
 					this.pushes.push(...response.data.pushes);
 					this.showLoadMore = response.data.pushes.length === 50;
 				})
 				.finally(() => (this.isLoading = false));
 		},
-		/**
-		 * Re-reads the first page after a push arrives and prepends what is new.
-		 * Pushes carry no id, so they are matched on sender, text and timestamp.
-		 */
 		pullNew() {
 			if (this.page !== "home" || !this.username) return;
 
-			axios.get("/api/pull", { params: { page: 1 } }).then((response) => {
+			axios.get("/api/pull").then((response) => {
 				const known = new Set(this.pushes.map((push) => `${push.from}|${push.date}|${push.text}`));
 				const fresh = response.data.pushes.filter((push) => !known.has(`${push.from}|${push.date}|${push.text}`));
 				this.pushes.unshift(...fresh);
 			});
 		},
-		push(text, recipient) {
+		push(text) {
 			if (!text.trim()) return this.setToast("Write something first");
 
 			this.isSaving = true;
-			axios
-				.post(`/api/push/${encodeURIComponent(recipient)}`, { text })
+			return axios
+				.post("/api/push", { text })
 				.then((response) => {
 					this.setToast(response.data.message, "success");
 					this.pushText = "";
 				})
 				.finally(() => (this.isSaving = false));
 		},
+		sendPush() {
+			const sending = this.push(this.pushText);
+			if (sending) {
+				sending.then(() => {
+					this.composerFocused = false;
+					this.pullNew();
+				});
+			}
+		},
 
-		/* ---------- web push ---------- */
+		mention(from) {
+			if (!from || from === this.username) return;
 
-		/**
-		 * Subscribes this browser to push and stores the subscription against the
-		 * session's device row.
-		 * @param  {boolean} quiet - Suppress the toasts, for the on-load refresh.
-		 * @return {Promise<boolean>} Whether the subscription reached the server.
-		 */
+			const mention = `@${from}`;
+			const mentioned = new RegExp(`(^|\\s)${mention}(\\s|$)`, "i");
+			if (!mentioned.test(this.pushText)) {
+				this.pushText = this.pushText ? `${mention} ${this.pushText}` : `${mention} `;
+			}
+			this.composerFocused = true;
+			this.$nextTick(() => this.$refs.composer?.focus());
+		},
+
+		updateMention() {
+			const el = this.$refs.composer;
+			if (!el) return;
+
+			const match = el.value.slice(0, el.selectionStart).match(/(^|[^a-zA-Z0-9])@([a-zA-Z0-9]*)$/);
+			const previous = this.mentionToken;
+			this.mentionToken = match ? { start: el.selectionStart - match[2].length - 1, query: match[2] } : null;
+			if (!previous || !this.mentionToken || previous.query !== this.mentionToken.query) this.mentionIndex = 0;
+		},
+		selectMention(name) {
+			const el = this.$refs.composer;
+			if (!el || !this.mentionToken) return;
+
+			const { start } = this.mentionToken;
+			const before = this.pushText.slice(0, start);
+			const after = this.pushText.slice(el.selectionStart);
+			this.pushText = `${before}@${name} ${after.replace(/^ /, "")}`;
+			this.mentionToken = null;
+
+			const cursor = before.length + name.length + 2;
+			this.$nextTick(() => {
+				el.focus();
+				el.setSelectionRange(cursor, cursor);
+			});
+		},
+		composerKeydown(event) {
+			const count = this.mentionSuggestions.length;
+			if (count && !event.isComposing) {
+				if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+					event.preventDefault();
+					const step = event.key === "ArrowDown" ? 1 : -1;
+					this.mentionIndex = (this.mentionIndex + step + count) % count;
+					return;
+				}
+				if (event.key === "Enter" || event.key === "Tab") {
+					event.preventDefault();
+					return this.selectMention(this.mentionSuggestions[this.mentionIndex]);
+				}
+				if (event.key === "Escape") {
+					event.preventDefault();
+					this.mentionToken = null;
+					return;
+				}
+			}
+
+			if (event.key !== "Enter") return;
+			if (event.isComposing || event.shiftKey) return;
+
+			event.preventDefault();
+			this.sendPush();
+		},
+
+		closeComposer(event) {
+			if (!this.composerFocused || this.pushText.trim()) return;
+			if (event.target?.closest?.(".composer, .overlay")) return;
+
+			this.composerFocused = false;
+		},
+
+		togglePanel(name) {
+			this.panel = this.panel === name ? null : name;
+		},
+
 		async savePushSubscription(quiet) {
 			const { vapidKey } = (await axios.get("/api/vapid", { quiet })).data;
 			if (!vapidKey) {
@@ -283,9 +337,6 @@ const App = Vue.createApp({
 			await axios.post("/api/device", { credentials: JSON.parse(JSON.stringify(subscription)) }, { quiet });
 			return true;
 		},
-		/**
-		 * Asks for notification permission, then registers the device.
-		 */
 		async enableNotifications() {
 			if (!swReg) return this.setToast("This browser cannot receive notifications");
 
@@ -304,12 +355,6 @@ const App = Vue.createApp({
 				this.isSaving = false;
 			}
 		},
-		/**
-		 * Re-attaches an already-granted subscription to the current session.
-		 * Every log in mints a fresh device token, so without this a browser that
-		 * granted permission long ago would sit there receiving nothing. Silent by
-		 * design: the user did not ask for this, so a failure must not shout.
-		 */
 		async refreshPushSubscription() {
 			if (!swReg || !this.username || this.pushPermission !== "granted") return;
 			try {
@@ -319,21 +364,15 @@ const App = Vue.createApp({
 			}
 		},
 
-		/* ---------- rendering helpers ---------- */
-
 		displayDate(datestring) {
 			const seconds = Math.floor((Date.now() - new Date(datestring)) / 1000);
 			const ago = (value, unit) => `${value} ${unit}${value > 1 ? "s" : ""} ago`;
 
 			if (seconds >= 86400) return ago(Math.floor(seconds / 86400), "day");
-			if (seconds >= 3600) return ago(Math.floor(seconds / 3600), "hour");
-			if (seconds >= 60) return ago(Math.floor(seconds / 60), "minute");
+			if (seconds >= 3600) return ago(Math.floor(seconds / 3600), "hr");
+			if (seconds >= 60) return ago(Math.floor(seconds / 60), "min");
 			return "just now";
 		},
-		/**
-		 * Turns URLs in push text into links. The text arrives HTML-escaped from
-		 * the server, so it is safe to hand the result to v-html.
-		 */
 		linkify(text) {
 			if (!text) return "";
 			return linkifyHtml(text, { attributes: { rel: "noopener noreferrer" }, target: { url: "_blank" } });
@@ -345,7 +384,11 @@ const App = Vue.createApp({
 		},
 	},
 	mounted() {
-		if (this.page === "home" && this.username) this.pull();
+		if (this.page === "home" && this.username) {
+			this.pull();
+			this.getAllowedUsers();
+			document.addEventListener("click", this.closeComposer);
+		}
 
 		if (this.page === "settings") {
 			this.getMe();
@@ -367,7 +410,6 @@ window.onerror = App.logError;
 	axios.interceptors.response.use(
 		(response) => response,
 		(error) => {
-			// A dead session on a signed-in page is only ever fixed by logging in again.
 			if (error.response?.status === 401 && App.username) {
 				window.location.replace("/login");
 				return new Promise(() => {});

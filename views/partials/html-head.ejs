@@ -10,8 +10,6 @@
 	<meta name="csrf-token" content="<%= csrfToken %>" />
 	<% } %> <% if(typeof user !== "undefined" && user !== null) { %>
 	<meta name="pushie-username" content="<%= user.username %>" />
-	<% } %> <% if(typeof profile !== "undefined") { %>
-	<meta name="pushie-profile" content="<%= profile %>" />
 	<% } %>
 	<meta name="pushie-page" content="<%= page %>" />
 	<meta name="pushie-version" content="<%= version %>" />
@@ -35,10 +33,14 @@
 	<title><%= title %></title>
 
 	<link href="/styles.css" rel="stylesheet" />
+	<% if(typeof extraCss !== "undefined" && extraCss) { %>
+	<link href="<%= extraCss %>" rel="stylesheet" />
+	<% } %>
 
 	<script defer src="/vue.global.prod.js"></script>
 	<script defer src="/axios.min.js"></script>
 	<script defer src="/linkify.min.js"></script>
 	<script defer src="/linkify-html.min.js"></script>
 	<script defer src="/script.js"></script>
+	<% if(typeof analyticsScript !== "undefined" && analyticsScript) { %><script src="<%= analyticsScript %>" async defer></script><% } %>
 </head>

@@ -1,26 +1,11 @@
 <%- include('toast'); -%>
 
 <header>
-	<a href="/" class="brand">
-		<svg viewBox="0 0 80 80" aria-hidden="true" focusable="false">
-			<path
-				d="M78 38L72.4 20.88L49.04 28.48V3.83997H30.96V28.48L7.6 20.88L2 38L25.44 45.6L10.96 65.6L25.52 76.16L40 56.24L54.48 76.16L69.04 65.6L54.56 45.6L78 38Z"
-				fill="currentColor"
-			/>
+	<a href="/" class="brand" aria-label="Pushie home">
+		<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+			<path d="M18.5918 24.2139L9.35645 8.07227L23.2129 0L32.2842 15.8564L41.3564 0L55.2129 8.07227L45.9766 24.2139L64 24.2139V40.3594H46.3047L55.2129 55.9277L41.3564 64L32.2842 48.1455L23.2129 64L9.35645 55.9277L18.2637 40.3594H0L0 24.2139H18.5918Z" fill="#F22952"/>
 		</svg>
-		<span>pushie</span>
 	</a>
-
-	<nav>
-		<% if(typeof user !== "undefined" && user !== null) { %>
-		<a href="/" class="<%= page === 'home' ? 'on' : '' %>">home</a>
-		<a href="/settings" class="<%= page === 'settings' ? 'on' : '' %>">settings</a>
-		<button type="button" v-on:click="logOut()">log out</button>
-		<% } else { %>
-		<a href="/login" class="<%= page === 'login' ? 'on' : '' %>">log in</a>
-		<a href="/signup" class="<%= page === 'signup' ? 'on' : '' %>">sign up</a>
-		<% } %>
-	</nav>
 </header>
 
 <% if(typeof heading !== "undefined" && heading) { %>

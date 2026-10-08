@@ -2,8 +2,8 @@
  * Pushie Service worker
  *
  * Registered as `/sw.js?v=<app version>`. The version travels in the query
- * string so a deploy changes the worker's URL — that is what makes the browser
- * fetch it again — and it also names the cache, so old caches are dropped.
+ * string so a deploy changes the worker's URL - that is what makes the browser
+ * fetch it again - and it also names the cache, so old caches are dropped.
  */
 
 const version = new URL(self.location).searchParams.get("v") ?? "dev";
@@ -75,7 +75,7 @@ self.addEventListener("push", (event) => {
 	try {
 		payload = JSON.parse(rawPayload);
 	} catch {
-		// Not JSON — the server also sends a plain test payload when validating
+		// Not JSON - the server also sends a plain test payload when validating
 		// a new subscription, and that one has nothing to show.
 		return;
 	}

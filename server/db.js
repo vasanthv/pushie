@@ -50,6 +50,7 @@ module.exports = (() => {
 			apiKeys: [{ type: String, index: true }],
 			allowedUsers: [{ type: Schema.Types.ObjectId, ref: "Users", index: true }],
 			allowedAnyone: { type: Boolean, default: false },
+			deletionRequestedOn: { type: Date, expires: config.ACCOUNT_DELETION_GRACE_DAYS * 86400 },
 		});
 
 		const pushSchema = new Schema({

@@ -4,32 +4,56 @@
 
 	<body>
 		<div id="app" class="wrap" v-cloak>
-			<%- include('partials/header'); -%> <% if(typeof user === "undefined" || user === null) { %>
-			<!-- Logged out: the intro. Placeholder copy for now. -->
-			<section class="intro">
-				<h1>Get notified the moment something happens.</h1>
-				<p>
-					Pushie delivers short messages straight to your devices as browser push notifications. Wire it into a script,
-					a cron job, a webhook or an agent &mdash; anything that can make an HTTP request can reach you.
-				</p>
-				<p>You decide who is allowed to push to you. Everything else is one API key and one POST request away.</p>
-				<p class="cta">
-					<a href="/signup" class="button">Create an account</a>
-					<a href="/login" class="button secondary">Log in</a>
-				</p>
-			</section>
-			<% } else { %>
-			<!-- Logged in: everything pushed to this user, newest first. -->
-			<div class="notice" v-if="pushPermission !== 'granted'">
+			<%- include('partials/header'); -%>
+
+			<div class="notice" v-if="pushPermission && pushPermission !== 'granted'">
 				<span>Notifications are off on this device.</span>
 				<button type="button" v-on:click="enableNotifications" v-bind:disabled="isSaving">Enable</button>
 			</div>
 
-			<section class="feed">
+			<form class="composer" v-bind:class="{ open: composerOpen }" v-on:submit.prevent="sendPush">
+				<div class="push draft">
+					<p class="meta">
+						<a class="title from" href="/settings">{{username}}</a>
+					</p>
+					<textarea
+						ref="composer"
+						rows="1"
+						aria-label="Send a push"
+						placeholder="Send a push. @mention to add recipients"
+						v-model="pushText"
+						v-bind:maxlength="maxPushLength"
+						v-on:focus="composerFocused = true"
+						v-on:keydown="composerKeydown"
+						v-on:input="updateMention"
+						v-on:keyup="['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes($event.key) && updateMention()"
+						v-on:click="updateMention"
+						v-on:blur="mentionToken = null"
+					></textarea>
+					<ul class="suggestions" role="listbox" v-if="mentionSuggestions.length">
+						<li
+							v-for="(name, index) in mentionSuggestions"
+							v-bind:key="name"
+							role="option"
+							v-bind:class="{ active: index === mentionIndex }"
+							v-bind:aria-selected="index === mentionIndex"
+							v-on:mousedown.prevent="selectMention(name)"
+						>
+							@{{name}}
+						</li>
+					</ul>
+				</div>
+				<div class="bar" v-show="composerOpen">
+					<div></div>
+					<button type="submit" class="button caps" v-bind:disabled="isSaving">Push</button>
+				</div>
+			</form>
+
+			<section>
 				<article class="push" v-for="(push, index) in pushes" v-bind:key="index">
 					<p class="meta">
-						<a v-bind:href="'/@' + push.from" class="from">@{{push.from}}</a>
-						<span class="when">{{displayDate(push.date)}}</span>
+						<span class="title"><a class="from" href="#" v-if="push.from !== username" v-on:click.prevent="mention(push.from)">{{push.from}}</a><span class="from" v-else>{{push.from}}</span></span>
+						<span class="time">{{displayDate(push.date)}}</span>
 					</p>
 					<p class="text" v-html="linkify(push.text)"></p>
 				</article>
@@ -37,13 +61,11 @@
 
 			<p class="empty" v-if="!isLoading && pushes.length === 0">
 				Nothing here yet. Pushes show up as they arrive and are deleted after 24 hours.
-				<a href="/settings">Create an API key</a> to start sending them.
 			</p>
 
 			<p class="loading" v-if="isLoading">Loading&hellip;</p>
 
-			<button type="button" class="button secondary block" v-if="showLoadMore" v-on:click="pull()">Load more</button>
-			<% } %>
+			<button type="button" class="button block" v-if="showLoadMore" v-on:click="pull()">Load more</button>
 		</div>
 		<%- include('partials/footer'); -%>
 	</body>

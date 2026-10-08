@@ -1,10 +1,11 @@
 const rateLimiter = require("express-rate-limit");
 const webPush = require("web-push");
 const crypto = require("crypto");
-const { URL } = require("url");
 
 const config = require("./config");
 const { Users } = require("./db").getInstance();
+
+const MAX_EMAIL_LENGTH = 254;
 
 /**
  * Returns the username if valid else throws an error using httpError function
@@ -26,7 +27,18 @@ const getValidUsername = (username) => {
  */
 const isValidUsername = (username) => {
 	if (!username || typeof username !== "string") return false;
-	return new RegExp(`^([a-zA-Z0-9-]){1,${config.MAX_USERNAME_LENGTH}}$`).test(username);
+	return new RegExp(`^([a-zA-Z0-9]){1,${config.MAX_USERNAME_LENGTH}}$`).test(username);
+};
+
+/**
+ * Returns the unique, lowercased usernames @mentioned in the given text. `all` is kept as a special mention.
+ * @param  {string} text - Push body
+ * @return {string[]}
+ */
+const getMentions = (text) => {
+	const pattern = new RegExp(`(?<![a-zA-Z0-9])@([a-zA-Z0-9]{1,${config.MAX_USERNAME_LENGTH}})(?![a-zA-Z0-9])`, "g");
+	const names = [...String(text).matchAll(pattern)].map((match) => match[1].toLowerCase());
+	return [...new Set(names)].filter((name) => name === "all" || !config.INVALID_HANDLES.includes(name));
 };
 
 /**
@@ -53,38 +65,13 @@ const getValidEmail = (email) => {
 };
 
 /**
- * Returns the url if valid else throws an error using httpError function
- * @param  {string} url - URL to be validated
- * @return {string} Valid URL
- */
-const getValidURL = (url) => {
-	if (!url) return httpError(400, "Empty URL");
-	if (!isValidUrl(url) || url.length > 2000) return httpError(400, "Invalid URL");
-	return url;
-};
-
-/**
  * Return true if the given email is a valid one, else returns false.
  * @param  {string} email - Emaill address to be validated
  * @return {boolean}
  */
 const isValidEmail = (email) => {
+	if (typeof email !== "string" || email.length > MAX_EMAIL_LENGTH) return false;
 	return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-};
-
-/**
- * Return true if the given url is a valid one, else returns false.
- * @param  {string} url - URL to be validated
- * @return {boolean}
- */
-const isValidUrl = (url) => {
-	try {
-		const _url = new URL(url);
-		return ["http:", "https:"].includes(_url.protocol) ? Boolean(_url) : false;
-	} catch (e) {
-		console.error(e);
-		return false;
-	}
 };
 
 /**
@@ -108,26 +95,66 @@ const sanitizeText = (text) => {
 const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /**
- * Returns a sha256 hashed string, adds an optional secret that can be configured in config.js
+ * Returns the legacy sha256(password + SECRET) hash. Only used to verify and upgrade old accounts.
  * @param  {string} str - string to be hashed
  * @return {string} Hashed string
  */
-const hashString = (str) => {
+const legacyHash = (str) => {
 	return crypto
 		.createHash("sha256")
 		.update(str + config.SECRET)
 		.digest("hex");
 };
 
+const SCRYPT_PREFIX = "scrypt$";
+const scrypt = (password, salt) =>
+	new Promise((resolve, reject) =>
+		crypto.scrypt(password, salt, 64, (err, key) => (err ? reject(err) : resolve(key)))
+	);
+
 /**
- * Returns a sha256 hashed string, adds an optional secret that can be configured in config.js
- * @param  {string} password - password string to be hashed
- * @return {string} Hashed password
+ * Hashes a password with a random salt using scrypt
+ * @param  {string} password - plain text password
+ * @return {Promise<string>} "scrypt$<salt hex>$<hash hex>"
+ */
+const hashPassword = async (password) => {
+	const salt = crypto.randomBytes(16);
+	const key = await scrypt(password, salt);
+	return `${SCRYPT_PREFIX}${salt.toString("hex")}$${key.toString("hex")}`;
+};
+
+/**
+ * Checks a password against a stored hash (scrypt, or the legacy sha256 format)
+ * @param  {string} password - plain text password
+ * @param  {string} stored - hash stored on the user
+ * @return {Promise<{valid: boolean, needsUpgrade: boolean}>}
+ */
+const verifyPassword = async (password, stored) => {
+	if (typeof stored !== "string") return { valid: false, needsUpgrade: false };
+
+	if (stored.startsWith(SCRYPT_PREFIX)) {
+		const [, saltHex, keyHex] = stored.split("$");
+		const expected = Buffer.from(keyHex ?? "", "hex");
+		const actual = await scrypt(password, Buffer.from(saltHex ?? "", "hex"));
+		const valid = expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
+		return { valid, needsUpgrade: false };
+	}
+
+	const expected = Buffer.from(stored, "utf8");
+	const actual = Buffer.from(legacyHash(password), "utf8");
+	const valid = expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
+	return { valid, needsUpgrade: valid };
+};
+
+/**
+ * Returns the password if valid else throws an error using httpError function
+ * @param  {string} password - plain text password to be validated
+ * @return {string} Valid password
  */
 const getValidPassword = (password) => {
-	if (!password) return httpError(400, "Invalid password");
+	if (!password || typeof password !== "string") return httpError(400, "Invalid password");
 	if (password.length < 8) return httpError(400, "Password length should be atleast 8 characters");
-	return hashString(password);
+	return password;
 };
 
 /**
@@ -137,6 +164,7 @@ const getValidPassword = (password) => {
  */
 const getValidPushBody = (text) => {
 	if (!text) return httpError(400, "Empty text");
+	if (typeof text !== "string") return httpError(400, "Invalid text");
 	return sanitizeText(text.substring(0, config.MAX_PUSH_LENGTH));
 };
 
@@ -226,24 +254,13 @@ const isNewUsername = async (username, currentUserId) => {
  * @return {Promise<string>} A promise which resolves to email
  */
 const isNewEmail = async (email, currentUserId) => {
-	let query = { email: { $regex: new RegExp(`^${email}$`, "i") } };
+	let query = { email: { $regex: new RegExp(`^${escapeRegex(email)}$`, "i") } };
 	if (currentUserId) {
 		query["_id"] = { $ne: currentUserId };
 	}
 
 	const existingEmail = await Users.findOne(query).select("email").exec();
 	return existingEmail ? httpError(400, "Email already taken") : email;
-};
-
-/**
- * A database helper function to fetch user by email
- * @param  {string} email - Email address of th user.
- * @return {Promise<User>} A promise which resolves to user object
- */
-const getUserByEmail = async (email) => {
-	let query = { email: { $regex: new RegExp(`^${email}$`, "i") } };
-
-	return await Users.findOne(query).exec();
 };
 
 /**
@@ -275,6 +292,16 @@ const getUsersByUsernames = async (usernames) => {
 };
 
 /**
+ * Returns the date on which an account whose deletion was requested at the given
+ * time is actually removed.
+ * @param  {Date} requestedOn - When the deletion was requested
+ * @return {Date} The date the account is deleted for good
+ */
+const getAccountDeletionDate = (requestedOn) => {
+	return new Date(new Date(requestedOn).getTime() + config.ACCOUNT_DELETION_GRACE_DAYS * 86400 * 1000);
+};
+
+/**
  * Throws a error which can be usernamed and changed to HTTP Error in the Express js Error handling middleware.
  * @param  {number} code - HTTP error code
  * @param  {[type]} message - HTTP error message
@@ -296,7 +323,7 @@ const httpError = (code, message) => {
  */
 const getWebPushPayload = (user, body) => {
 	const payload = JSON.stringify({
-		title: `You got a push from ${user.username}`,
+		title: user.username.toUpperCase(),
 		url: config.URL,
 		body,
 	});
@@ -307,23 +334,21 @@ const getWebPushPayload = (user, body) => {
  * Sends the push notification using web push library
  * @param  {object} pushCredentials - Push credentials from the browser
  * @param  {string} payload - payload to be sent with the push
+ * @param  {function} [onExpired] - Called when the push service says the subscription is gone (404/410)
  * @return {boolean} Return if the operation succeeded on not
  */
-const sendWebPush = async (pushCredentials, payload) => {
+const sendWebPush = async (pushCredentials, payload, onExpired) => {
 	try {
 		await webPush.sendNotification(pushCredentials, payload, config.PUSH_OPTIONS);
 		return true;
 	} catch (err) {
-		// web-push wraps the push service's rejection in a WebPushError. The status and
-		// body carry the actual reason — a mismatched VAPID pair, an expired
-		// subscription, an endpoint the service no longer knows — none of which a bare
-		// `err` prints. Callers only ever see false, so this log is the sole record.
 		if (err instanceof webPush.WebPushError) {
 			console.error("Web push rejected", {
 				statusCode: err.statusCode,
 				body: err.body,
 				endpoint: pushCredentials?.endpoint,
 			});
+			if ((err.statusCode === 404 || err.statusCode === 410) && onExpired) await onExpired();
 		} else {
 			console.error(err);
 		}
@@ -335,14 +360,16 @@ const sendWebPush = async (pushCredentials, payload) => {
  * Sends the push notifications to all the subscribed devices
  * @param  {device[]} devices - Device object
  * @param  {string} payload - payload to be sent with the push
+ * @param  {function} [onExpired] - Called with the device whose subscription has expired
  * @return {boolean} Return if the operation succeeded on not
  */
-const sendPushNotificationToSubscribers = async (devices, payload) => {
+const sendPushNotificationToSubscribers = async (devices, payload, onExpired) => {
 	const pushPromises = [];
 
-	devices.forEach((device) => pushPromises.push(sendWebPush(device.pushCredentials, payload)));
+	devices.forEach((device) =>
+		pushPromises.push(sendWebPush(device.pushCredentials, payload, onExpired && (() => onExpired(device))))
+	);
 
-	//@TODO: handle the failure in a better way
 	try {
 		await Promise.all(pushPromises);
 		return true;
@@ -373,27 +400,24 @@ const getViewProps = (req, title) => {
 		version: config.VERSION,
 		user: req.user,
 		csrfToken: req.csrfToken,
+		analyticsScript: config.ANALYTICS_SCRIPT,
 	};
 };
 
 module.exports = {
 	getValidUsername,
-	isValidUsername,
+	getMentions,
 	canPushToUser,
 	getValidEmail,
-	getValidURL,
-	isValidEmail,
-	isValidUrl,
 	isNewUsername,
 	isNewEmail,
-	getUserByEmail,
 	getUserByUsername,
 	getUsersByUsernames,
-	escapeRegex,
-	sanitizeText,
-	hashString,
 	getValidPassword,
+	hashPassword,
+	verifyPassword,
 	getValidPushBody,
+	getAccountDeletionDate,
 	httpError,
 	attachUsertoRequest,
 	attachUsertoRequestFromAPIKey,

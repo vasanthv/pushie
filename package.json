@@ -1,12 +1,12 @@
 {
 	"name": "pushie",
-	"version": "1.0.4",
+	"version": "1.1.0",
 	"description": "A social push notifications app.",
 	"main": "init.js",
 	"scripts": {
-		"start": "node init.js",
-		"api-dev": "DISABLE_CSRF=true node init.js",
-		"gen:vapid": "node ./scripts/generate-vapid-keys.js",
+		"start": "node --env-file-if-exists=.env init.js",
+		"api-dev": "DISABLE_CSRF=true node --env-file-if-exists=.env init.js",
+		"gen:vapid": "node ./generate-vapid-keys.js",
 		"test": "echo \"Error: no test specified\" && exit 1"
 	},
 	"keywords": [
@@ -15,6 +15,9 @@
 	],
 	"author": "Vasanth.V <hi@vasanthv.me>",
 	"license": "MIT",
+	"engines": {
+		"node": ">=24"
+	},
 	"dependencies": {
 		"@aws-sdk/client-ses": "^3.556.0",
 		"axios": "^1.7.7",
@@ -26,7 +29,6 @@
 		"express": "^4.19.2",
 		"express-rate-limit": "^7.2.0",
 		"express-session": "^1.18.0",
-		"generate-api-key": "^1.0.2",
 		"html-to-text": "^9.0.5",
 		"linkify-html": "^4.2.0",
 		"linkify-plugin-hashtag": "^4.2.0",

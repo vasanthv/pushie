@@ -6,87 +6,71 @@
 			<%- include('partials/header', { heading: 'Privacy policy' }); -%>
 
 			<section>
+				<h3>What We Collect</h3>
 				<p>
-					Your privacy matters to us. This Privacy Policy outlines how Pushie collects, uses, and protects your personal
-					information when you use our services.
+					When you create an account, we collect your email address and your chosen username. When you send
+					notifications, we store the message content temporarily. If you @mention other users, they receive your notification, and they
+					can see its content and your username. We also collect technical information like IP
+					addresses for security and service reliability. Our servers keep standard access logs (such as IP address,
+					request time, and requested URL), but these logs <strong>never</strong> include the contents of your push
+					notifications.
 				</p>
 
-				<h3>Information We Collect</h3>
-				<p>We collect the following information:</p>
-				<ul>
-					<li>
-						<strong>Account Information:</strong> When you create an account to publish, we collect your username, email
-						address, and password.
-					</li>
-					<li>
-						<strong>Usage Data:</strong> We log information such as the channels you subscribe to, the pushes you
-						publish, and basic usage patterns (e.g., timestamps).
-					</li>
-					<li>
-						<strong>Device Information:</strong> We may also collect data like browser type, operating system, and IP
-						address to help us understand usage trends and ensure service reliability.
-					</li>
-				</ul>
-
-				<h3>How We Use Your Information</h3>
-				<p>We use your information to:</p>
-				<ul>
-					<li>Operate and maintain Pushie,</li>
-					<li>Send your pushes to subscribers via browser push notifications,</li>
-					<li>Prevent abuse (e.g., rate limiting per IP/account),</li>
-					<li>Improve the reliability and performance of the service,</li>
-					<li>Respond to support requests or questions you send us.</li>
-				</ul>
-
-				<h3>Push Content and Retention</h3>
+				<h3>How Long We Keep Your Data</h3>
 				<p>
-					Pushes (your public messages) are stored temporarily and automatically deleted after
-					<strong>24 hours</strong>. We do not retain or archive pushes beyond this window. Subscribers only receive
-					messages in real time or during this 24-hour window.
+					Notifications are automatically deleted after <strong>24 hours</strong>. Access logs are automatically cleared
+					after <strong>8 days</strong>. Your account information (email,
+					username, settings) is kept as long as your account is active. If you delete your account, all data is
+					permanently removed within 7 days.
 				</p>
 
-				<h3>Sharing Your Information</h3>
-				<p>We do not sell your data. We don’t share your personal information unless:</p>
+				<h3>How We Use Your Data</h3>
+				<p>
+					We use your data only to provide the Pushie service: delivering notifications and maintaining your account. We
+					do not sell or rent your personal information. We share data only with the service providers listed below, and
+					only as needed to run the service. We do not use your notifications for marketing, analytics, or any purpose
+					beyond delivery.
+				</p>
+
+				<h3>Third-Party Services</h3>
+				<p>Pushie relies on a few third parties to work:</p>
 				<ul>
-					<li>We’re required by law or legal process,</li>
-					<li>It's necessary to protect Pushie, its users, or the public from harm or abuse.</li>
+					<li>
+						<strong>Browser push services</strong> (Google, Apple, Mozilla, or whichever provider your browser uses):
+						notifications are delivered to your devices through these services, so they receive your notification
+						content, which is encrypted for your device, along with technical details of your device subscription.
+					</li>
+					<li>
+						<strong>Amazon Web Services (AWS)</strong>: we use AWS to send account-related emails, such as email
+						verification and password resets. AWS receives your email address and the content of those emails.
+					</li>
+					<li>
+						<strong>Cabin</strong>: we use Cabin Analytics to collect aggregated usage statistics about how Pushie is
+						used. It is not used to read or analyze your notifications.
+					</li>
 				</ul>
+				<p>These providers handle data under their own privacy policies.</p>
 
 				<h3>Security</h3>
 				<p>
-					We use reasonable technical measures to safeguard your data. However, no system is completely secure. Please
-					use a strong password and do not reuse passwords across services.
+					We encrypt data in transit using industry-standard TLS. Notifications are stored securely and automatically
+					deleted after 24 hours. However, no system is perfectly secure. Keep your account credentials confidential.
 				</p>
 
 				<h3>Your Rights</h3>
 				<p>
-					You may contact us at any time to request that we delete your account and associated data. We will process
-					such requests promptly.
-				</p>
-
-				<h3>Cookies</h3>
-				<p>
-					Pushie may use cookies or local storage to remember your login or preferences. You can clear these through
-					your browser settings. Disabling cookies may limit your ability to stay logged in or use push notifications.
-				</p>
-
-				<h3>Third-Party Links</h3>
-				<p>
-					Some pushes may contain links to external websites. We do not control those sites and are not responsible for
-					their content or privacy practices.
+					You can access, update, or delete your account anytime through your settings. Deleted accounts have all data
+					removed within 7 days.
 				</p>
 
 				<h3>Changes to This Policy</h3>
 				<p>
-					We may update this Privacy Policy from time to time. When we do, we will update the date at the top of this
-					document. Please check back occasionally for the latest version.
+					We may update this privacy policy anytime. Significant changes will be announced via email or on our website.
+					Your continued use means you accept the updated policy.
 				</p>
 
-				<h3>Contact Us</h3>
-				<p>
-					If you have any questions about this Privacy Policy or your data, reach out to us at
-					<a href="mailto:hello@pushie.net">hello@pushie.net</a>.
-				</p>
+				<h3>Contact</h3>
+				<p>Questions about your privacy? Email us at <a href="mailto:hello@pushie.net">hello@pushie.net</a>.</p>
 			</section>
 		</div>
 		<%- include('partials/footer'); -%>

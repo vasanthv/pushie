@@ -30,4 +30,11 @@ export default [
 
 		rules: {},
 	},
+	{
+		files: ["**/*.mjs"],
+		languageOptions: {
+			ecmaVersion: 2020,
+			sourceType: "module",
+		},
+	},
 ];

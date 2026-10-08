@@ -1,4 +1,3 @@
-const { generateApiKey } = require("generate-api-key");
 const randomString = require("randomstring");
 
 const uuid = require("uuid").v4;
@@ -15,7 +14,7 @@ const signUp = async (req, res, next) => {
 		await utils.isNewUsername(username);
 		const email = utils.getValidEmail(req.body.email);
 		await utils.isNewEmail(email);
-		const password = utils.getValidPassword(req.body.password);
+		const password = await utils.hashPassword(utils.getValidPassword(req.body.password));
 
 		const date = new Date();
 
@@ -49,14 +48,21 @@ const logIn = async (req, res, next) => {
 		const username = utils.getValidUsername(req.body.username);
 		const password = utils.getValidPassword(req.body.password);
 
-		const user = await Users.findOne({ username: { $regex: new RegExp(`^${username}$`, "i") }, password }).exec();
+		const user = await Users.findOne({ username: { $regex: new RegExp(`^${username}$`, "i") } }).exec();
+		const { valid, needsUpgrade } = await utils.verifyPassword(password, user?.password);
 
-		if (!user) return utils.httpError(400, "Invalid user credentials");
+		if (!user || !valid) return utils.httpError(400, "Invalid user credentials");
+
+		// Move accounts still on the legacy sha256 hash over to scrypt
+		if (needsUpgrade) await Users.updateOne({ _id: user._id }, { password: await utils.hashPassword(password) });
 
 		const token = uuid();
 		const userAgent = req.get("user-agent");
 
-		await Users.updateOne({ _id: user._id }, { $push: { devices: { token, userAgent } }, lastLoginOn: new Date() });
+		await Users.updateOne(
+			{ _id: user._id },
+			{ $push: { devices: { token, userAgent } }, $unset: { deletionRequestedOn: 1 }, lastLoginOn: new Date() }
+		);
 
 		req.session.token = token;
 		res.json({ message: "Logged in", username: user.username });
@@ -88,7 +94,7 @@ const resetPassword = async (req, res, next) => {
 		if (!user) return utils.httpError(400, "Invalid username");
 
 		const passwordString = randomString.generate(8);
-		const password = await utils.getValidPassword(passwordString);
+		const password = await utils.hashPassword(utils.getValidPassword(passwordString));
 
 		await Users.updateOne({ _id: user._id }, { password, lastUpdatedOn: new Date() });
 		await sendEmail.resetPasswordEmail(user.username, user.email, passwordString);
@@ -101,14 +107,9 @@ const resetPassword = async (req, res, next) => {
 
 const me = async (req, res, next) => {
 	try {
-		const { username, email, joinedOn, bio, apiKeys, allowedAnyone, emailVerificationCode } = req.user;
+		const { username, email, joinedOn, bio, allowedAnyone, emailVerificationCode } = req.user;
 
-		const response = { username, email, joinedOn, bio, allowedAnyone };
-		if (req.query.apiKeys === "true") {
-			response["apiKeys"] = apiKeys;
-		}
-
-		res.json({ ...response, isEmailVerified: !emailVerificationCode });
+		res.json({ username, email, joinedOn, bio, allowedAnyone, isEmailVerified: !emailVerificationCode });
 	} catch (error) {
 		next(error);
 	}
@@ -141,7 +142,7 @@ const updateAccount = async (req, res, next) => {
 			req.body.email && req.body.email !== req.user.email ? await utils.getValidEmail(req.body.email) : null;
 		if (email) await utils.isNewEmail(email, req.user._id);
 
-		const password = req.body.password ? await utils.getValidPassword(req.body.password) : null;
+		const password = req.body.password ? await utils.hashPassword(utils.getValidPassword(req.body.password)) : null;
 
 		// An explicitly empty bio clears it, an omitted one leaves it untouched.
 		const hasBio = req.body.bio !== undefined && req.body.bio !== null;
@@ -183,6 +184,25 @@ const updateAccount = async (req, res, next) => {
 	}
 };
 
+const deleteAccount = async (req, res, next) => {
+	try {
+		const { _id, username, email } = req.user;
+
+		const deletionRequestedOn = new Date();
+		const deletionDate = utils.getAccountDeletionDate(deletionRequestedOn);
+
+		await Users.updateOne({ _id }, { deletionRequestedOn, lastUpdatedOn: deletionRequestedOn });
+
+		req.session.destroy();
+
+		res.json({ message: "Account scheduled for deletion", deletionDate });
+
+		sendEmail.accountDeletionEmail(username, email, deletionDate, config.ACCOUNT_DELETION_GRACE_DAYS);
+	} catch (error) {
+		next(error);
+	}
+};
+
 const getApiKeys = async (req, res, next) => {
 	try {
 		const { apiKeys } = req.user;
@@ -194,7 +214,7 @@ const getApiKeys = async (req, res, next) => {
 };
 const newApiKey = async (req, res, next) => {
 	try {
-		const apiKey = generateApiKey({ method: "uuidv4", dashes: false });
+		const apiKey = uuid().replaceAll("-", "");
 
 		await Users.updateOne({ _id: req.user._id }, { $push: { apiKeys: apiKey }, lastUpdatedOn: new Date() });
 
@@ -256,8 +276,6 @@ const getAllowedUsers = async (req, res, next) => {
 
 const addAllowedUser = async (req, res, next) => {
 	try {
-		if (!req.user) return utils.httpError(401, "Unauthorized");
-
 		const username = utils.getValidUsername(req.params.username);
 
 		const user = await utils.getUserByUsername(username);
@@ -276,8 +294,6 @@ const addAllowedUser = async (req, res, next) => {
 
 const removeAllowedUser = async (req, res, next) => {
 	try {
-		if (!req.user) return utils.httpError(401, "Unauthorized");
-
 		const username = utils.getValidUsername(req.params.username);
 		if (username === req.user.username.toLowerCase()) return utils.httpError(400, "Cannot remove your own username");
 
@@ -297,19 +313,33 @@ const removeAllowedUser = async (req, res, next) => {
 
 const push = async (req, res, next) => {
 	try {
-		const recipients = [...new Set(req.params.recipients.split(",").map((r) => utils.getValidUsername(r.trim())))];
 		const body = utils.getValidPushBody(req.body.text);
+
+		// Legacy: POST /push/:username is only valid for the sender's own username; otherwise it behaves like POST /push.
+		const sender = req.user.username.toLowerCase();
+		if (req.params.username && utils.getValidUsername(req.params.username) !== sender) {
+			return utils.httpError(404, "Not found");
+		}
+
+		const mentions = utils.getMentions(body);
+		const recipients = [...new Set([sender, ...mentions.filter((name) => name !== "all")])];
 
 		const users = await utils.getUsersByUsernames(recipients);
 
-		const allowedUsers = users.filter((user) => utils.canPushToUser(user, req.user));
-		if (!allowedUsers.length) return utils.httpError(400, "No valid recipients");
+		// @all: everyone who has explicitly added the sender to their allowed users
+		if (mentions.includes("all")) {
+			const explicit = await Users.find({ allowedUsers: req.user._id }).exec();
+			const known = new Set(users.map((user) => String(user._id)));
+			users.push(...explicit.filter((user) => !known.has(String(user._id))));
+		}
+
+		const allowedUsers = users.filter((user) => user._id.equals(req.user._id) || utils.canPushToUser(user, req.user));
 
 		const from = req.user.username;
 		const to = allowedUsers.map((user) => user.username);
 		const date = new Date();
 
-		await new Pushes({ user: req.user._id, from, to, text: body, date }).save();
+		const savedPush = await new Pushes({ user: req.user._id, from, to, text: body, date }).save();
 
 		const payload = utils.getWebPushPayload(req.user, body);
 
@@ -317,12 +347,17 @@ const push = async (req, res, next) => {
 			allowedUsers.map((user) =>
 				utils.sendPushNotificationToSubscribers(
 					user.devices.filter((device) => device.pushCredentials),
-					payload
+					payload,
+					(device) =>
+						Users.updateOne(
+							{ _id: user._id, "devices.token": device.token },
+							{ $unset: { "devices.$.pushCredentials": "" } }
+						).exec()
 				)
 			)
 		);
 
-		res.json({ message: "Push sent", to });
+		res.json({ message: "Push sent", to, _id: savedPush._id });
 	} catch (error) {
 		next(error);
 	}
@@ -330,12 +365,12 @@ const push = async (req, res, next) => {
 
 const pull = async (req, res, next) => {
 	try {
-		const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+		const skip = Math.max(parseInt(req.query.skip, 10) || 0, 0);
 
 		const pushes = await Pushes.find({ to: req.user.username.toLowerCase() })
-			.select("-_id from to text date")
+			.select("-_id from text date")
 			.sort({ date: -1 })
-			.skip((page - 1) * config.PAGE_LIMIT)
+			.skip(skip)
 			.limit(config.PAGE_LIMIT)
 			.exec();
 
@@ -362,6 +397,7 @@ module.exports = {
 	resendEmailVerification,
 	resetPassword,
 	updateAccount,
+	deleteAccount,
 	me,
 	getApiKeys,
 	newApiKey,

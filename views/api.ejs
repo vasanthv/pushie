@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+	<%- include('partials/html-head', { extraCss: '/api.css' }); -%>
+
+	<body>
+		<div id="app" class="wrap" v-cloak>
+			<%- include('partials/header', { heading: 'API' }); -%>
+
+			<section class="api-intro">
+				<p>
+					Every endpoint below authenticates with an API key. Create one under
+					<a href="/settings">Settings</a> &rarr; API Keys and send it as the <code>x-api-key</code> header. No cookies
+					and no login step, so a plain <code>curl</code> works.
+				</p>
+				<p>All responses are JSON.</p>
+			</section>
+
+			<section class="endpoint">
+				<h2><span class="method">POST</span> <code>/api/push</code></h2>
+				<p>Send a push notification to one or more users.</p>
+
+				<h3>Parameters</h3>
+				<dl class="params">
+					<dt>text <span class="tag">body, required</span></dt>
+					<dd>
+						The message to send. Anything beyond 160 characters is trimmed off. You always receive the push
+						yourself. Add <code>@mention</code>s to send it to others too <code>Eg: @alice @bob deploy finished</code>.
+						A mentioned user only receives the push if they have added you to their allowed users, or have turned on
+						"Allow anyone to send me push". Mentioned users who have not are skipped.
+						Use <code>@all</code> to send it to everyone who has added you to their allowed users.
+					</dd>
+				</dl>
+
+				<h3>Example</h3>
+				<pre class="code-block">
+curl -X POST https://pushie.net/api/push \
+  -H "x-api-key: $PUSHIE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Deployment finished on production"}'</pre
+				>
+
+				<h3>Response</h3>
+				<pre class="code-block response">
+{
+  "message": "Push sent",
+  "to": ["alice"],
+  "_id": "68bd0f3c9a1b4c2d5e6f7a80"
+}</pre
+				>
+				<p class="hint">
+					Limited to 25 requests every 5 minutes.
+				</p>
+			</section>
+
+			<section class="endpoint">
+				<h2><span class="method">GET</span> <code>/api/pull</code></h2>
+				<p>List the pushes sent to you, newest first.</p>
+
+				<h3>Parameters</h3>
+				<dl class="params">
+					<dt>skip <span class="tag">query, optional</span></dt>
+					<dd>
+						How many pushes to skip. Defaults to <code>0</code>. Each call returns up to 50 pushes.
+					</dd>
+				</dl>
+
+				<h3>Example</h3>
+				<pre class="code-block">
+curl "https://pushie.net/api/pull?skip=50" \
+  -H "x-api-key: $PUSHIE_API_KEY"</pre
+				>
+
+				<h3>Response</h3>
+				<pre class="code-block response">
+{
+  "pushes": [
+    {
+      "from": "alice",
+      "text": "Deployment finished on production",
+      "date": "2026-09-07T10:24:11.000Z"
+    }
+  ]
+}</pre
+				>
+				<p class="hint">Pushes are deleted 24 hours after they are sent, so this only ever returns the last day.</p>
+			</section>
+
+			<section class="endpoint">
+				<h2>Errors</h2>
+				<p>
+					Failures come back with a matching status code and a JSON body whose <code>message</code> key holds the error
+					message.
+				</p>
+				<pre class="code-block response">{ "message": "Unauthorized" }</pre>
+
+				<dl class="params">
+					<dt>400</dt>
+					<dd>The request was invalid, for example <code>text</code> is empty or invalid.</dd>
+					<dt>401</dt>
+					<dd>The <code>x-api-key</code> header is not a valid API key.</dd>
+					<dt>403</dt>
+					<dd>A <code>POST</code> was sent without the <code>x-api-key</code> header.</dd>
+					<dt>404</dt>
+					<dd>No endpoint at that path.</dd>
+					<dt>429</dt>
+					<dd>You went past a rate limit. The message says how long to wait.</dd>
+				</dl>
+			</section>
+		</div>
+		<%- include('partials/footer'); -%>
+	</body>
+</html>

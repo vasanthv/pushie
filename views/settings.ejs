@@ -4,94 +4,179 @@
 
 	<body>
 		<div id="app" class="wrap" v-cloak>
-			<%- include('partials/header', { heading: 'Settings' }); -%>
+			<%- include('partials/header'); -%>
 
-			<nav class="tabs">
-				<button type="button" v-bind:class="{ on: tab === 'account' }" v-on:click="tab = 'account'">Account</button>
-				<button type="button" v-bind:class="{ on: tab === 'users' }" v-on:click="tab = 'users'">Allowed users</button>
-				<button type="button" v-bind:class="{ on: tab === 'keys' }" v-on:click="tab = 'keys'">API keys</button>
-			</nav>
+			<!-- 1. Who may push to me -->
+			<section class="panel">
+				<button
+					type="button"
+					class="panel-head"
+					v-bind:class="{ open: panel === 'users' }"
+					v-on:click="togglePanel('users')"
+				>
+					<span>Manage allowed users</span>
+					<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+						<path d="M6 3L11 8L6 13" fill="none" stroke="currentColor" stroke-width="2" />
+					</svg>
+				</button>
 
-			<!-- 1. The account itself -->
-			<section v-show="tab === 'account'">
-				<div class="notice" v-if="myAccount.username && !myAccount.isEmailVerified">
-					<span>Your e-mail is not verified.</span>
-					<button type="button" v-on:click="resendVerification">Resend</button>
+				<div class="panel-body" v-show="panel === 'users'">
+					<p class="hint">
+						Manage who can send push notifications to you. Users in this list will be readily available to send push
+						notification.
+					</p>
+
+					<ul class="rows">
+						<li class="row" v-for="username in otherAllowedUsers" v-bind:key="username">
+							<span class="name">{{username}}</span>
+							<button type="button" class="icon" v-on:click="removeAllowedUser(username)" aria-label="Remove user">
+								<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+									<path d="M3 3L13 13M13 3L3 13" fill="none" stroke="currentColor" stroke-width="2" />
+								</svg>
+							</button>
+						</li>
+					</ul>
+
+					<form class="row" v-on:submit.prevent="addAllowedUser">
+						<input type="text" placeholder="Add user" aria-label="Add user" v-model="newAllowedUser" />
+						<button type="submit" class="icon" v-bind:disabled="isSaving" aria-label="Add user">
+							<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+								<path d="M8 2V14M2 8H14" fill="none" stroke="currentColor" stroke-width="2" />
+							</svg>
+						</button>
+					</form>
 				</div>
-
-				<form class="form" v-on:submit.prevent="updateAccount">
-					<div class="field">
-						<label for="username">Username</label>
-						<input type="text" id="username" v-model="myAccount.username" />
-					</div>
-					<div class="field">
-						<label for="email">E-mail address</label>
-						<input type="email" id="email" v-model="myAccount.email" />
-						<p class="hint">Changing this sends a fresh verification mail.</p>
-					</div>
-					<div class="field">
-						<label for="password">New password</label>
-						<input type="password" id="password" autocomplete="new-password" v-model="myAccount.password" />
-						<p class="hint">Leave blank to keep your current password.</p>
-					</div>
-					<div class="field">
-						<label for="bio">Bio</label>
-						<textarea id="bio" rows="3" v-model="myAccount.bio"></textarea>
-					</div>
-					<button type="submit" class="button" v-bind:disabled="isSaving">Save changes</button>
-				</form>
 			</section>
 
-			<!-- 2. Who may push to me -->
-			<section v-show="tab === 'users'">
-				<p class="hint">Only the people listed here can push to you.</p>
+			<!-- 2. The account itself -->
+			<section class="panel">
+				<button
+					type="button"
+					class="panel-head"
+					v-bind:class="{ open: panel === 'account' }"
+					v-on:click="togglePanel('account')"
+				>
+					<span>Account</span>
+					<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+						<path d="M6 3L11 8L6 13" fill="none" stroke="currentColor" stroke-width="2" />
+					</svg>
+				</button>
 
-				<label class="check">
-					<input type="checkbox" v-model="allowedAnyone" v-on:change="updateAllowedAnyone" />
-					<span>Let anyone push to me</span>
-				</label>
+				<div class="panel-body" v-show="panel === 'account'">
+					<div class="notice" v-if="myAccount.username && !myAccount.isEmailVerified">
+						<span>Your e-mail is not verified.</span>
+						<button type="button" v-on:click="resendVerification">Resend</button>
+					</div>
 
-				<form class="form inline" v-on:submit.prevent="addAllowedUser">
-					<input type="text" placeholder="username" v-model="newAllowedUser" />
-					<button type="submit" class="button" v-bind:disabled="isSaving">Add</button>
-				</form>
+					<form v-on:submit.prevent="updateAccount">
+						<div class="field">
+							<label for="username">Username</label>
+							<input
+								type="text"
+								id="username"
+								class="upper"
+								placeholder="username"
+								autocomplete="username"
+								v-model="myAccount.username"
+							/>
+						</div>
+						<div class="field">
+							<label for="email">Email address</label>
+							<input
+								type="email"
+								id="email"
+								placeholder="you@example.com"
+								autocomplete="email"
+								v-model="myAccount.email"
+							/>
+						</div>
+						<div class="field">
+							<label for="password">Password</label>
+							<input
+								type="password"
+								id="password"
+								placeholder="Leave blank to keep current"
+								autocomplete="new-password"
+								v-model="myAccount.password"
+							/>
+						</div>
 
-				<ul class="list">
-					<li v-for="username in allowedUsers" v-bind:key="username">
-						<a v-bind:href="'/@' + username">@{{username}}</a>
-						<button
-							type="button"
-							class="link danger"
-							v-if="username !== myAccount.username"
-							v-on:click="removeAllowedUser(username)"
-						>
-							Remove
-						</button>
-						<span class="hint" v-else>you</span>
-					</li>
-				</ul>
+						<label class="check">
+							<input type="checkbox" v-model="allowedAnyone" />
+							<span>Allow anyone to send me push</span>
+						</label>
+
+						<button type="submit" class="button block caps" v-bind:disabled="isSaving">Update</button>
+					</form>
+				</div>
 			</section>
 
 			<!-- 3. API keys -->
-			<section v-show="tab === 'keys'">
-				<p class="hint">
-					Send an API key as the <code>x-api-key</code> header to push without logging in.
-					<a href="https://github.com/vasanthv/pushie/blob/main/docs/API-DOCS.md" target="_blank" rel="noopener">
-						Read the API docs</a
-					>.
-				</p>
-
-				<button type="button" class="button" v-on:click="createApiKey" v-bind:disabled="isSaving">
-					Create a new key
+			<section class="panel">
+				<button
+					type="button"
+					class="panel-head"
+					v-bind:class="{ open: panel === 'keys' }"
+					v-on:click="togglePanel('keys')"
+				>
+					<span>API Keys</span>
+					<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+						<path d="M6 3L11 8L6 13" fill="none" stroke="currentColor" stroke-width="2" />
+					</svg>
 				</button>
 
-				<ul class="list">
-					<li v-for="key in apiKeys" v-bind:key="key">
-						<code>{{key}}</code>
-						<button type="button" class="link danger" v-on:click="deleteApiKey(key)">Delete</button>
-					</li>
-				</ul>
-				<p class="hint" v-if="apiKeys.length === 0">No API keys yet.</p>
+				<div class="panel-body" v-show="panel === 'keys'">
+					<p class="hint">
+						Send an API key as the <code>x-api-key</code> header to push without logging in.
+					</p>
+
+					<ul class="rows">
+						<li class="row" v-for="key in apiKeys" v-bind:key="key">
+							<code>{{key}}</code>
+							<button type="button" class="icon" v-on:click="deleteApiKey(key)" aria-label="Delete key">
+								<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+									<path d="M3 3L13 13M13 3L3 13" fill="none" stroke="currentColor" stroke-width="2" />
+								</svg>
+							</button>
+						</li>
+					</ul>
+
+					<button type="button" class="button block caps" v-on:click="createApiKey" v-bind:disabled="isSaving">
+						Create a new key
+					</button>
+				</div>
+			</section>
+
+			<section class="panel">
+				<button
+					type="button"
+					class="panel-head danger"
+					v-bind:class="{ open: panel === 'delete' }"
+					v-on:click="togglePanel('delete')"
+				>
+					<span>Delete account</span>
+					<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+						<path d="M6 3L11 8L6 13" fill="none" stroke="currentColor" stroke-width="2" />
+					</svg>
+				</button>
+
+				<div class="panel-body" v-show="panel === 'delete'">
+					<p class="hint">
+						Your account will be deleted in 7 days. Until then nothing changes, and your API keys keep working. Log in
+						again before that date and your account is kept - that is all it takes.
+					</p>
+
+					<button type="button" class="button block caps danger" v-on:click="deleteAccount" v-bind:disabled="isSaving">
+						Delete my account
+					</button>
+				</div>
+			</section>
+
+			<!-- Not a section, but it reads as one more thing you can do here. -->
+			<section class="panel">
+				<button type="button" class="panel-head danger" v-on:click="logOut()">
+					<span>Log out</span>
+				</button>
 			</section>
 		</div>
 		<%- include('partials/footer'); -%>

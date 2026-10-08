@@ -1,0 +1,97 @@
+.intro .lede {
+	font-size: 1.1rem;
+	margin-bottom: 2rem;
+}
+
+.intro-cta {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 1rem;
+	margin: 0 0 0.75rem;
+}
+
+.intro-section {
+	margin: 0 0 2.75rem;
+	max-width: 34rem;
+}
+
+.intro-section:first-of-type {
+	position: relative;
+	margin-top: 1rem;
+	padding-top: 2.5rem;
+}
+
+.intro-section:first-of-type::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 6px;
+	background: var(--line);
+	-webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 6'><path d='M0 3Q4 0 8 3T16 3' fill='none' stroke='black' stroke-width='1.5'/></svg>");
+	mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 6'><path d='M0 3Q4 0 8 3T16 3' fill='none' stroke='black' stroke-width='1.5'/></svg>");
+	-webkit-mask-size: 16px 6px;
+	mask-size: 16px 6px;
+	-webkit-mask-repeat: repeat-x;
+	mask-repeat: repeat-x;
+}
+
+.intro-section h2 {
+	font-size: 1.15rem;
+	line-height: 1.3;
+	margin: 0 0 0.75rem;
+}
+
+.intro-section p {
+	margin: 0 0 0.9rem;
+}
+
+.intro-section p:last-child {
+	margin-bottom: 0;
+}
+
+.code-block {
+	margin: 1.25rem 0;
+	padding: 1rem 1.25rem;
+	background: var(--panel);
+	border-left: 3px solid var(--accent);
+	border-radius: var(--radius-sm);
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	font-size: 0.85rem;
+	line-height: 1.7;
+	white-space: pre;
+	overflow-x: auto;
+}
+
+.callout {
+	margin: 1.25rem 0;
+	padding: 1rem 1.25rem;
+	background: var(--highlight);
+	border-radius: var(--radius-sm);
+	font-size: 0.95rem;
+}
+
+.callout strong {
+	display: block;
+	margin-bottom: 0.2rem;
+}
+
+.reasons {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.reasons li {
+	margin-bottom: 0.9rem;
+}
+
+.reasons li:last-child {
+	margin-bottom: 0;
+}
+
+.reasons .name {
+	font-weight: 700;
+}

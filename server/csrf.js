@@ -2,8 +2,6 @@ const crypto = require("crypto");
 
 const config = require("./config");
 
-const CSRF_SECRET = config.SECRET;
-
 /**
  * Encodes input as URL-safe base64.
  * @param  {string} input - Plain text value.
@@ -29,7 +27,7 @@ const base64urlDecode = (input) => {
  * @return {string} URL-safe base64 HMAC signature.
  */
 const sign = (data) => {
-	return base64urlEncode(crypto.createHmac("sha256", CSRF_SECRET).update(data).digest());
+	return base64urlEncode(crypto.createHmac("sha256", config.SECRET).update(data).digest());
 };
 
 /**

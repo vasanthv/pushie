@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+	<%- include('partials/html-head', { extraCss: '/intro.css' }); -%>
+
+	<body>
+		<div id="app" class="wrap" v-cloak>
+			<%- include('partials/header'); -%>
+
+			<section class="intro">
+				<h1>Get notified when <mark>something happens</mark></h1>
+				<p class="lede">
+					Pushie lets you send notifications to yourself from anywhere. Create an account, claim a username, and start pushing to every device you are signed in on with a single HTTP request.
+				</p>
+				<p class="lede">No app or SDK to install. No complex authentication. Just a POST request with your message.</p>
+
+				<% if(typeof user === "undefined" || !user) { %>
+				<p class="intro-cta">
+					<a href="/signup" class="button">Get started</a>
+				</p>
+				<p class="alt">Already got an account? <a href="/login">Log in</a></p>
+				<% } %>
+
+				<section class="intro-section">
+					<h2>How it works?</h2>
+					<p>Sign up and choose your username. Every username is a notification channel that belongs to you.</p>
+					<p>When you want to send a notification, make a POST request with your API key and your message:</p>
+					<pre class="code-block">
+curl -X POST https://pushie.net/api/push \
+  -H "x-api-key: your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Your script finished running!"}'</pre
+					>
+					<p>
+						Notifications are delivered with Web Push, the standard built into modern browsers, so there is no app to
+						download. Open Pushie in your browser, log in, and enable notifications. From then on every push shows up
+						right away on that device - phone, tablet, laptop, anywhere.
+					</p>
+					<p>
+						On iPhone and iPad, add Pushie to your Home Screen first. Apple only allows web push for installed web apps.
+					</p>
+					<p>
+						You always receive your own pushes. To send one to someone else, <code>@mention</code> them in the message,
+						like <code>@alice deploy finished</code>, or use <code>@all</code> for everyone who has added you. They only
+						receive it if they have added you to their allowed users list.
+					</p>
+					<p>Notifications are stored for 24 hours and then automatically deleted.</p>
+				</section>
+
+				<section class="intro-section">
+					<h2>Where can I use this?</h2>
+					<p>
+						This is ideal for automated alerts. Use it as a webhook receiver for your CI/CD pipeline, AI agents, cron
+						jobs, background workers, or any process that needs to tell you when something happens.
+					</p>
+					<div class="callout">
+						<strong>For example</strong>
+						Your build script finishes, it POSTs to Pushie, and you are notified on your phone - even when you are away
+						from your desk.
+					</div>
+				</section>
+
+				<section class="intro-section">
+					<h2>Why Pushie?</h2>
+					<ul class="reasons">
+						<li><span class="name">Simple.</span> No configuration, no ceremony. One endpoint per username.</li>
+						<li>
+							<span class="name">Universal.</span> Works with any language or framework that can make an HTTP request.
+						</li>
+						<li><span class="name">Instant.</span> Notifications arrive immediately on all your connected devices.</li>
+						<li><span class="name">Free.</span> 100% free for everyone.</li>
+					</ul>
+				</section>
+			</section>
+		</div>
+		<%- include('partials/footer'); -%>
+	</body>
+</html>

@@ -50,7 +50,7 @@ router.use((req, res, next) => {
 	const requestToken = req.headers["x-csrf-token"] || req.body?.csrfToken;
 
 	if (!cookieToken || !requestToken || cookieToken !== requestToken || !csrf.verifyCsrfToken(requestToken)) {
-		return res.status(403).json({ message: "Page expired. Please refresh and try again" });
+		return res.status(403).json({ message: "Forbidden. Please try again" });
 	}
 
 	next();

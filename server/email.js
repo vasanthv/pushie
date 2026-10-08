@@ -1,5 +1,4 @@
 const { SESClient, SendEmailCommand } = require("@aws-sdk/client-ses");
-const { htmlToText } = require("html-to-text");
 
 const config = require("./config");
 
@@ -47,34 +46,33 @@ const resetPasswordEmail = (username, email, password) => {
 	sendEmail(params);
 };
 
-const sendEmailFromHTMLBody = (subject, emailHTML, recipients = []) => {
-	recipients.forEach((email) => {
-		const params = {
-			Source: config.NO_REPLY_EMAIL,
-			Destination: { ToAddresses: [email.email] },
-			ReplyToAddresses: [config.CONTACT_EMAIL],
-			Message: {
-				Subject: { Charset: "UTF-8", Data: subject },
-				Body: {
-					Html: {
-						Charset: "UTF-8",
-						Data: emailHTML,
-					},
-					Text: {
-						Charset: "UTF-8",
-						Data: htmlToText(emailHTML),
-					},
+const accountDeletionEmail = (username, email, deletionDate, graceDays) => {
+	const when = deletionDate.toDateString();
+	const loginLink = `${config.URL}login`;
+
+	const params = {
+		Source: config.NO_REPLY_EMAIL,
+		Destination: { ToAddresses: [email] },
+		Message: {
+			Subject: { Charset: "UTF-8", Data: `Your account will be deleted in ${graceDays} days` },
+			Body: {
+				Html: {
+					Charset: "UTF-8",
+					Data: `Hello @${username}<br/><br/>Your Pushie account will be deleted in ${graceDays} days, on <b>${when}</b>.<br/><br/>Until then nothing changes: your account and your API keys keep working as usual.<br/><br/>Changed your mind? Just <a href="${loginLink}" target='_blank'>log in</a> before that date and your account is kept. That is all it takes.<br/><br/>Thanks<br/>`,
+				},
+				Text: {
+					Charset: "UTF-8",
+					Data: `Hello @${username}\n\nYour Pushie account will be deleted in ${graceDays} days, on ${when}.\n\nUntil then nothing changes: your account and your API keys keep working as usual.\n\nChanged your mind? Just log in before that date and your account is kept. That is all it takes: ${loginLink}\n\nThanks\n`,
 				},
 			},
-		};
-
-		sendEmail(params);
-	});
+		},
+	};
+	sendEmail(params);
 };
 
 /**
  * Sends one mail through SES. Every caller fires this without awaiting it, so a
- * rejection here would otherwise take the whole process down — misconfigured
+ * rejection here would otherwise take the whole process down - misconfigured
  * credentials used to turn any signup into a crash. A mail that cannot be sent
  * is logged and dropped; the request that triggered it still succeeds.
  * @param  {object} params - SendEmailCommand input.
@@ -97,4 +95,4 @@ const sendEmail = async (params) => {
 	}
 };
 
-module.exports = { verificationEmail, resetPasswordEmail, sendEmailFromHTMLBody };
+module.exports = { verificationEmail, resetPasswordEmail, accountDeletionEmail };

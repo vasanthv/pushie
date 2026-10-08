@@ -9,11 +9,12 @@ const middlewares = require("./server/middlewares");
 
 app.set("view engine", "ejs");
 
+// Trust the first proxy hop (hosting load balancer) so req.ip is the real client IP for rate limiting
+app.set("trust proxy", 1);
+
 // Serve vue.js, page.js & axios to the browser
 app.use(express.static(path.join(__dirname, "node_modules/linkifyjs/dist/")));
 app.use(express.static(path.join(__dirname, "node_modules/linkify-html/dist/")));
-app.use(express.static(path.join(__dirname, "node_modules/linkify-plugin-mention/dist/")));
-app.use(express.static(path.join(__dirname, "node_modules/linkify-plugin-hashtag/dist/")));
 app.use(express.static(path.join(__dirname, "node_modules/axios/dist/")));
 app.use(express.static(path.join(__dirname, "node_modules/vue/dist/")));
 
@@ -23,6 +24,8 @@ app.use(express.static(path.join(__dirname, "assets/icons")));
 
 // Attach the session middleware
 app.use(middlewares);
+
+app.get("/api", viewRoutes);
 
 // Handle API requests
 app.use("/api", apiRoutes);
