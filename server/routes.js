@@ -24,7 +24,7 @@ router.post("/login", utils.rateLimit({ max: 5 }), model.logIn);
 router.post("/reset", utils.rateLimit({ max: 5 }), model.resetPassword);
 router.post("/resend", utils.rateLimit({ max: 1 }), model.resendEmailVerification);
 
-router.use(["/push", "/pull"], utils.attachUsertoRequestFromAPIKey);
+router.use(["/push", "/pull", "/me"], utils.attachUsertoRequestFromAPIKey);
 
 // Auth is applied per route (not with router.use) so unknown paths fall through to the 404 handler.
 const auth = utils.isUserAuthed;
