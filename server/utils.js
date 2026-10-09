@@ -27,7 +27,7 @@ const getValidUsername = (username) => {
  */
 const isValidUsername = (username) => {
 	if (!username || typeof username !== "string") return false;
-	return new RegExp(`^([a-zA-Z0-9]){1,${config.MAX_USERNAME_LENGTH}}$`).test(username);
+	return new RegExp(`^([a-zA-Z0-9-]){1,${config.MAX_USERNAME_LENGTH}}$`).test(username);
 };
 
 /**
@@ -108,9 +108,7 @@ const legacyHash = (str) => {
 
 const SCRYPT_PREFIX = "scrypt$";
 const scrypt = (password, salt) =>
-	new Promise((resolve, reject) =>
-		crypto.scrypt(password, salt, 64, (err, key) => (err ? reject(err) : resolve(key)))
-	);
+	new Promise((resolve, reject) => crypto.scrypt(password, salt, 64, (err, key) => (err ? reject(err) : resolve(key))));
 
 /**
  * Hashes a password with a random salt using scrypt
