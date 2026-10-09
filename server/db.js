@@ -32,7 +32,7 @@ module.exports = (() => {
 		console.log("Pushie DB initialized");
 
 		const userSchema = new Schema({
-			username: { type: String, index: true, required: true, unique: true, match: /^([a-zA-Z0-9]){1,18}$/ },
+			username: { type: String, index: true, required: true, unique: true, match: /^([a-zA-Z0-9-]){1,18}$/ },
 			email: { type: String, index: true, unique: true, required: true },
 			password: { type: String, required: true },
 			emailVerificationCode: { type: String, index: true },
