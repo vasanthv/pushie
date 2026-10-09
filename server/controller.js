@@ -107,9 +107,9 @@ const resetPassword = async (req, res, next) => {
 
 const me = async (req, res, next) => {
 	try {
-		const { username, email, joinedOn, bio, allowedAnyone, emailVerificationCode } = req.user;
+		const { username, email, joinedOn, allowedAnyone, emailVerificationCode } = req.user;
 
-		res.json({ username, email, joinedOn, bio, allowedAnyone, isEmailVerified: !emailVerificationCode });
+		res.json({ username, email, joinedOn, allowedAnyone, isEmailVerified: !emailVerificationCode });
 	} catch (error) {
 		next(error);
 	}
@@ -144,10 +144,6 @@ const updateAccount = async (req, res, next) => {
 
 		const password = req.body.password ? await utils.hashPassword(utils.getValidPassword(req.body.password)) : null;
 
-		// An explicitly empty bio clears it, an omitted one leaves it untouched.
-		const hasBio = req.body.bio !== undefined && req.body.bio !== null;
-		const bio = hasBio && req.body.bio ? utils.getValidPushBody(req.body.bio) : "";
-
 		const updateFields = {};
 		if (username) updateFields["username"] = username;
 		if (password) updateFields["password"] = password;
@@ -158,7 +154,6 @@ const updateAccount = async (req, res, next) => {
 			updateFields["emailVerificationCode"] = emailVerificationCode;
 			await sendEmail.verificationEmail(username ?? currentUsername, email, emailVerificationCode);
 		}
-		if (hasBio) updateFields["bio"] = bio;
 		if (typeof req.body.allowedAnyone === "boolean") updateFields["allowedAnyone"] = req.body.allowedAnyone;
 
 		await Users.updateOne({ _id: req.user._id }, { ...updateFields, lastUpdatedOn: new Date() });

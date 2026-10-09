@@ -127,11 +127,11 @@ const App = Vue.createApp({
 			});
 		},
 		updateAccount() {
-			const { username, email, password, bio } = this.myAccount;
+			const { username, email, password } = this.myAccount;
 
 			this.isSaving = true;
 			axios
-				.put("/api/account", { username, email, password, bio, allowedAnyone: this.allowedAnyone })
+				.put("/api/account", { username, email, password, allowedAnyone: this.allowedAnyone })
 				.then((response) => {
 					this.setToast(response.data.message, "success");
 					this.myAccount.password = "";

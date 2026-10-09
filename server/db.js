@@ -37,7 +37,6 @@ module.exports = (() => {
 			password: { type: String, required: true },
 			emailVerificationCode: { type: String, index: true },
 			joinedOn: { type: Date, default: Date.now },
-			bio: String,
 			lastLoginOn: Date,
 			lastUpdatedOn: Date,
 			devices: [
