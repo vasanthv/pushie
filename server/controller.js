@@ -363,7 +363,7 @@ const pull = async (req, res, next) => {
 		const skip = Math.max(parseInt(req.query.skip, 10) || 0, 0);
 
 		const pushes = await Pushes.find({ to: req.user.username.toLowerCase() })
-			.select("-_id from text date")
+			.select("_id from text date")
 			.sort({ date: -1 })
 			.skip(skip)
 			.limit(config.PAGE_LIMIT)
