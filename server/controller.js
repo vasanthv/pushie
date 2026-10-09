@@ -352,7 +352,7 @@ const push = async (req, res, next) => {
 			)
 		);
 
-		res.json({ message: "Push sent", to, _id: savedPush._id });
+		res.json({ message: "Push sent", to, _id: savedPush._id, from: savedPush.from, date: savedPush.date });
 	} catch (error) {
 		next(error);
 	}
